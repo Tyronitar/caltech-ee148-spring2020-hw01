@@ -2,6 +2,9 @@ import os
 import numpy as np
 import json
 from PIL import Image
+from torch import norm
+
+from utils import demo_normalize, normalize, rgb_to_hsv, visualize
 
 def detect_red_light(I):
     '''
@@ -12,10 +15,10 @@ def detect_red_light(I):
     top left corner and the row and column index of the bottom right corner (in
     that order). See the code below for an example.
     
-    Note that PIL loads images in RGB order, so:
-    I[:,:,0] is the red channel
-    I[:,:,1] is the green channel
-    I[:,:,2] is the blue channel
+    Note that the image is in HSV order, so:
+    I[:,:,0] is the hue channel
+    I[:,:,1] is the saturation channel
+    I[:,:,2] is the value channel
     '''
     
     
@@ -35,8 +38,9 @@ def detect_red_light(I):
     
     num_boxes = np.random.randint(1,5) 
     
+    (n_rows,n_cols,n_channels) = np.shape(I)
+
     for i in range(num_boxes):
-        (n_rows,n_cols,n_channels) = np.shape(I)
         
         tl_row = np.random.randint(n_rows - box_height)
         tl_col = np.random.randint(n_cols - box_width)
@@ -54,30 +58,38 @@ def detect_red_light(I):
     
     return bounding_boxes
 
-# set the path to the downloaded data: 
-data_path = 'data/RedLights2011_Medium'
+if __name__ == "__main__":
+    # set the path to the downloaded data: 
+    data_path = 'data/RedLights2011_Medium/RedLights2011_Medium'
 
-# set a path for saving predictions: 
-preds_path = '../data/hw01_preds' 
-os.makedirs(preds_path,exist_ok=True) # create directory if needed 
+    # set a path for saving predictions: 
+    preds_path = 'out/hw01_preds' 
+    os.makedirs(preds_path,exist_ok=True) # create directory if needed 
 
-# get sorted list of files: 
-file_names = sorted(os.listdir(data_path)) 
+    # get sorted list of files: 
+    file_names = sorted(os.listdir(data_path)) 
 
-# remove any non-JPEG files: 
-file_names = [f for f in file_names if '.jpg' in f] 
+    # remove any non-JPEG files: 
+    file_names = [f for f in file_names if '.jpg' in f] 
 
-preds = {}
-for i in range(len(file_names)):
-    
-    # read image using PIL:
-    I = Image.open(os.path.join(data_path,file_names[i]))
-    
-    # convert to numpy array:
-    I = np.asarray(I)
-    
-    preds[file_names[i]] = detect_red_light(I)
+    preds = {}
+    # for i in range(len(file_names)):
+    for i in range(1):
+        
+        # read image using PIL:
+        I = Image.open(os.path.join(data_path,file_names[i]))
+        # hsv = rgb_to_hsv(I)
+        
+        # convert to numpy array:
+        # hsv = np.asarray(hsv)
+        arr = np.asarray(I)
+        arr = normalize(arr)
+        print(file_names[i])
+        
+        preds[file_names[i]] = detect_red_light(arr)
 
-# save preds (overwrites any previous predictions!)
-with open(os.path.join(preds_path,'preds.json'),'w') as f:
-    json.dump(preds,f)
+    # visualize(data_path, file_names[0],preds[file_names[0]])
+
+    # save preds (overwrites any previous predictions!)
+    with open(os.path.join(preds_path,'preds.json'),'w') as f:
+        json.dump(preds,f)
