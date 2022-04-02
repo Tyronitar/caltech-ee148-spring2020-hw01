@@ -2,11 +2,20 @@ import os
 import numpy as np
 import json
 from PIL import Image
-from torch import norm
 
-from utils import demo_normalize, normalize, rgb_to_hsv, visualize
+from utils import normalize_img, convolve_with_kernels, sigmoid
 
-def detect_red_light(I):
+KERNEL_BOXES = {
+        "RL-010.jpg": [[122, 13, 173, 84], [320, 26, 349, 92]],
+        "RL-021.jpg": [[281, 148, 289, 167]],
+        "RL-028.jpg": [[308, 202, 317, 213], [344, 204, 348, 215]],
+        "RL-036.jpg": [[216, 149, 232, 171], [296, 163, 305, 183]],
+        "RL-050.jpg": [[335, 123, 348, 155]],
+        "RL-248.jpg": [[498, 130, 518, 172]],
+        "RL-274.jpg": [[315, 232, 322, 248]],
+}
+
+def detect_red_light(kernels: list[np.ndarray], I: np.ndarray) -> list[list[int]]:
     '''
     This function takes a numpy array <I> and returns a list <bounding_boxes>.
     The list <bounding_boxes> should have one element for each red light in the 
@@ -15,10 +24,10 @@ def detect_red_light(I):
     top left corner and the row and column index of the bottom right corner (in
     that order). See the code below for an example.
     
-    Note that the image is in HSV order, so:
-    I[:,:,0] is the hue channel
-    I[:,:,1] is the saturation channel
-    I[:,:,2] is the value channel
+    Note that the image is in RGB order, so:
+    I[:,:,0] is the red channel
+    I[:,:,1] is the blue channel
+    I[:,:,2] is the green channel
     '''
     
     
@@ -27,40 +36,27 @@ def detect_red_light(I):
     '''
     BEGIN YOUR CODE
     '''
-    
-    '''
-    As an example, here's code that generates between 1 and 5 random boxes
-    of fixed size and returns the results in the proper format.
-    '''
-    
-    box_height = 8
-    box_width = 6
-    
-    num_boxes = np.random.randint(1,5) 
-    
-    (n_rows,n_cols,n_channels) = np.shape(I)
+    # Get raw scores by convolving all kernels with image and taking max
+    scores = convolve_with_kernels(kernels, I)
 
-    for i in range(num_boxes):
-        
-        tl_row = np.random.randint(n_rows - box_height)
-        tl_col = np.random.randint(n_cols - box_width)
-        br_row = tl_row + box_height
-        br_col = tl_col + box_width
-        
-        bounding_boxes.append([tl_row,tl_col,br_row,br_col]) 
-    
-    '''
-    END YOUR CODE
-    '''
-    
-    for i in range(len(bounding_boxes)):
-        assert len(bounding_boxes[i]) == 4
-    
+    # Normalize scores to be in [0, 1]
+    scores = sigmoid(scores)
+
     return bounding_boxes
+
 
 if __name__ == "__main__":
     # set the path to the downloaded data: 
     data_path = 'data/RedLights2011_Medium/RedLights2011_Medium'
+
+    # Make Kernels
+
+    kernels = []
+    for img, boxes in KERNEL_BOXES.items():
+        I = Image.open(os.path.join(data_path, img))
+        for box in boxes:
+            k_img = normalize_img(I.crop(tuple(box)))
+            kernels.append(np.asarray(k_img))
 
     # set a path for saving predictions: 
     preds_path = 'out/hw01_preds' 
@@ -78,15 +74,9 @@ if __name__ == "__main__":
         
         # read image using PIL:
         I = Image.open(os.path.join(data_path,file_names[i]))
-        # hsv = rgb_to_hsv(I)
-        
-        # convert to numpy array:
-        # hsv = np.asarray(hsv)
         arr = np.asarray(I)
-        arr = normalize(arr)
-        print(file_names[i])
         
-        preds[file_names[i]] = detect_red_light(arr)
+        preds[file_names[i]] = detect_red_light(kernels[:1], arr)
 
     # visualize(data_path, file_names[0],preds[file_names[0]])
 
