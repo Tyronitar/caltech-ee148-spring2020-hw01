@@ -1,6 +1,6 @@
 import numpy as np
 
-from src.utils import convolve_with_kernels
+from src.utils import convolve_with_kernels2,convolve_with_kernels, normalize_arr
 
 def test_convolve():
     k = np.array([[1, 2, 3],

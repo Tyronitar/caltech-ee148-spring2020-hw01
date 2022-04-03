@@ -1,9 +1,11 @@
 import os
 import numpy as np
 import json
-from PIL import Image
 
-from utils import normalize_img, convolve_with_kernels, sigmoid
+from PIL import Image
+from pyinstrument import Profiler
+
+from utils import normalize_img, convolve_with_kernels2, sigmoid
 
 KERNEL_BOXES = {
         "RL-010.jpg": [[122, 13, 173, 84], [320, 26, 349, 92]],
@@ -37,7 +39,8 @@ def detect_red_light(kernels: list[np.ndarray], I: np.ndarray) -> list[list[int]
     BEGIN YOUR CODE
     '''
     # Get raw scores by convolving all kernels with image and taking max
-    scores = convolve_with_kernels(kernels, I)
+    scores = convolve_with_kernels2(kernels, I)
+    print(scores)
 
     # Normalize scores to be in [0, 1]
     scores = sigmoid(scores)
@@ -47,39 +50,42 @@ def detect_red_light(kernels: list[np.ndarray], I: np.ndarray) -> list[list[int]
 
 if __name__ == "__main__":
     # set the path to the downloaded data: 
-    data_path = 'data/RedLights2011_Medium/RedLights2011_Medium'
+    with Profiler() as profiler:
+        data_path = 'data/RedLights2011_Medium/RedLights2011_Medium'
 
-    # Make Kernels
+        # Make Kernels
 
-    kernels = []
-    for img, boxes in KERNEL_BOXES.items():
-        I = Image.open(os.path.join(data_path, img))
-        for box in boxes:
-            k_img = normalize_img(I.crop(tuple(box)))
-            kernels.append(np.asarray(k_img))
+        kernels = []
+        for img, boxes in KERNEL_BOXES.items():
+            I = Image.open(os.path.join(data_path, img))
+            for box in boxes:
+                k_img = normalize_img(I.crop(tuple(box)))
+                kernels.append(np.asarray(k_img))
 
-    # set a path for saving predictions: 
-    preds_path = 'out/hw01_preds' 
-    os.makedirs(preds_path,exist_ok=True) # create directory if needed 
+        # set a path for saving predictions: 
+        preds_path = 'out/hw01_preds' 
+        os.makedirs(preds_path,exist_ok=True) # create directory if needed 
 
-    # get sorted list of files: 
-    file_names = sorted(os.listdir(data_path)) 
+        # get sorted list of files: 
+        file_names = sorted(os.listdir(data_path)) 
 
-    # remove any non-JPEG files: 
-    file_names = [f for f in file_names if '.jpg' in f] 
+        # remove any non-JPEG files: 
+        file_names = [f for f in file_names if '.jpg' in f] 
 
-    preds = {}
-    # for i in range(len(file_names)):
-    for i in range(1):
-        
-        # read image using PIL:
-        I = Image.open(os.path.join(data_path,file_names[i]))
-        arr = np.asarray(I)
-        
-        preds[file_names[i]] = detect_red_light(kernels[:1], arr)
+        preds = {}
+        # for i in range(len(file_names)):
+        for i in range(1):
+            
+            # read image using PIL:
+            I = Image.open(os.path.join(data_path,file_names[i]))
+            arr = np.asarray(I)
+            I = kernels[0]
+            
+            preds[file_names[i]] = detect_red_light(kernels[:1], arr)
 
-    # visualize(data_path, file_names[0],preds[file_names[0]])
+        # visualize(data_path, file_names[0],preds[file_names[0]])
 
-    # save preds (overwrites any previous predictions!)
-    with open(os.path.join(preds_path,'preds.json'),'w') as f:
-        json.dump(preds,f)
+        # save preds (overwrites any previous predictions!)
+        with open(os.path.join(preds_path,'preds.json'),'w') as f:
+            json.dump(preds,f)
+    profiler.print()

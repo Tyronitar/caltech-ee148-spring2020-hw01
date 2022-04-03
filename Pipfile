@@ -4,6 +4,7 @@ pillow = "*"
 
 [dev-packages]
 pytest = "*"
+pyinstrument = "*"
 
 [requires]
 python_version = "3.10"

@@ -5,7 +5,9 @@ import os
 import re
 from unittest import result
 import numpy as np
+from numpy.lib.stride_tricks import sliding_window_view
 from PIL import Image, ImageDraw
+from scipy import ndimage
 
 
 def rgb_to_hsv(image: Image.Image) -> Image.Image:
@@ -29,6 +31,12 @@ def normalize_arr(arr: np.ndarray) -> np.ndarray:
     http://en.wikipedia.org/wiki/Normalization_%28image_processing%29
     """
     arr = arr.astype('float')
+    # minval = arr.min(axis=(0, 1), keepdims=True)
+    # maxval = arr.max(axis=(0, 1), keepdims=True)
+    # print(minval, maxval)
+    # print(arr)
+    # arr = (arr - minval) * 255.0 / (maxval - minval)
+    # print(arr)
     for i in range(3):
         minval = arr[...,i].min()
         maxval = arr[...,i].max()
@@ -83,6 +91,32 @@ def convolve_with_kernels(kernels: list[np.ndarray], I: np.ndarray, normalize: b
                 if normalize:
                     x = normalize_arr(x)
                 # print(f"x shape: {x.shape}")
-                x = mat_dot(k, x)
+                # x = np.dot(k.flatten(), x.flatten())
+                x = np.sum(k *x)
                 result[row, col] = max(result[row, col], x)
     return result
+
+def convolve_with_kernels2(kernels: list[np.ndarray], I: np.ndarray, normalize: bool = True) -> np.ndarray:
+    result = np.ones(I.shape[:2]) * -np.inf
+    for k in kernels:
+        H, W, _ = np.shape(k)
+
+        # Zero pad I for convolution
+        left_pad = (W - 1) // 2
+        right_pad = W - 1 - left_pad
+        top_pad = (H - 1) // 2
+        bot_pad = H - 1 - top_pad
+        padded = np.pad(I, ((top_pad, bot_pad), (left_pad, right_pad), (0, 0)), 'constant')
+
+        # get all the windows into the image used for convolution
+        padded = sliding_window_view(padded, k.shape)
+
+        # cpmpute cosine similarity between ernel and each window
+        padded_norm = np.linalg.norm(padded[:, :, 0, :, :])
+        k_norm = np.linalg.norm(k)
+        sim = (k * padded[:, :, 0, :, :]).sum(axis=(2, 3, 4)) / (k_norm * padded_norm)
+        
+        # Update results if this kernel yields better similarity than previous ones
+        result = np.maximum(result, sim)
+    return result
+        
