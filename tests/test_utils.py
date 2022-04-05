@@ -1,6 +1,12 @@
 import numpy as np
 
-from src.utils import convolve_with_kernels2,convolve_with_kernels, normalize_arr
+from src.utils import *
+
+ERROR_MARGIN = 1e-4
+
+def is_close(a, b):
+    return abs(a - b) < ERROR_MARGIN
+
 
 def test_convolve():
     k = np.array([[1, 2, 3],
@@ -25,3 +31,27 @@ def test_convolve():
         [49, 57, 64, 76, 10],
     ])
     assert (res == correct).all()
+
+
+def test_cosine_sim():
+    k = np.array([[1, 2, 3],
+                  [-4, 7, 4],
+                  [2, -5, 1]
+                ])
+    assert is_close(cosine_similarity(k, k), 1.0)
+
+def test_mass_cosine_sim():
+    k = np.array([[[1, 1]], [[2, 2]], [[3, 3]]])
+    X = np.array([
+        [
+            [[[[1, 1]], [[2, 2]], [[3, 3]]]],
+            [[[[-1, -1]], [[-2, -2]], [[-3, -3]]]],
+        ],
+        [
+            [[[[1, 1]], [[2, 2]], [[3, 3]]]],
+            [[[[1, 1]], [[2, 2]], [[3, 3]]]],
+        ]])
+    print(k.shape)
+    print(X.shape)
+    mass_cosine_similarity(k, X)
+    assert False

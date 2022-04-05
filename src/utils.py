@@ -3,7 +3,6 @@ Utility Functions for Detecting Red Lights
 """
 import os
 import re
-from unittest import result
 import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
 from PIL import Image, ImageDraw
@@ -98,6 +97,7 @@ def convolve_with_kernels(kernels: list[np.ndarray], I: np.ndarray, normalize: b
 
 def convolve_with_kernels2(kernels: list[np.ndarray], I: np.ndarray, normalize: bool = True) -> np.ndarray:
     result = np.ones(I.shape[:2]) * -np.inf
+    I = I.astype("float")
     for k in kernels:
         H, W, _ = np.shape(k)
 
@@ -110,13 +110,46 @@ def convolve_with_kernels2(kernels: list[np.ndarray], I: np.ndarray, normalize: 
 
         # get all the windows into the image used for convolution
         padded = sliding_window_view(padded, k.shape)
+        k = k.astype("float")
 
-        # cpmpute cosine similarity between ernel and each window
-        padded_norm = np.linalg.norm(padded[:, :, 0, :, :])
-        k_norm = np.linalg.norm(k)
-        sim = (k * padded[:, :, 0, :, :]).sum(axis=(2, 3, 4)) / (k_norm * padded_norm)
+        for i in range(padded.shape[0]):
+            # for j in range(padded.shape[1]):
+            #     x = padded[i, j, 0, :, :, :]
+            #     sim = cosine_similarity(k, x, k_norm=k_norm)
+            #     result[i, j] = max(result[i, j], sim)
+            result[i, :] = np.maximum(result[i, :], mass_cosine_similarity(k, padded[i, :, :, :, :]).reshape((-1)))
+        # # cpmpute cosine similarity between kernel and each window
+        # padded_norm = np.linalg.norm(padded)
+        # k_norm = np.linalg.norm(k)
+        # sim = (k * padded).sum(axis=(2, 3, 4)) / (k_norm * padded_norm)
         
-        # Update results if this kernel yields better similarity than previous ones
-        result = np.maximum(result, sim)
+        # # Update results if this kernel yields better similarity than previous ones
+        # result = np.maximum(result, sim)
     return result
         
+
+def mass_cosine_similarity(k: np.ndarray, X: np.ndarray) -> np.ndarray:
+    assert k.shape == X.shape[-3:]
+    m, i, l, w, c = X.shape
+    X = X.reshape((m, i, l * w * c))
+    X_norm = np.linalg.norm(X, axis=(-1))
+    k_norm = np.linalg.norm(k)
+    return X.dot(k.ravel()) / (X_norm * k_norm)
+
+
+def cosine_similarity(k: np.ndarray, x: np.ndarray, k_norm=None, x_norm=None) -> float:
+    if k_norm is None:
+        k_norm = np.linalg.norm(k)
+    if x_norm is None:
+        x_norm = np.linalg.norm(x)
+
+    return k.ravel().dot(x.ravel()) / (k_norm * x_norm)
+
+
+# def score_clustering(s: np.ndarray) -> list[int]:
+
+
+def downsample(I: Image.Image, s: int = 1) -> Image.Image:
+    w, h, = I.size
+    newsize = (w // s, h // s)
+    return I.resize(newsize)

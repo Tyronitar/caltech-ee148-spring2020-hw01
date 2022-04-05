@@ -1,6 +1,7 @@
 [packages]
 numpy = "*"
 pillow = "*"
+matplotlib = "*"
 
 [dev-packages]
 pytest = "*"
