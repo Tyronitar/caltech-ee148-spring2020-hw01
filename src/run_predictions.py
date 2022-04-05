@@ -1,12 +1,15 @@
+from fileinput import filename
 import os
+from tkinter import W
 from matplotlib import pyplot as plt
 import numpy as np
 import json
 
 from PIL import Image
+import tqdm
 from pyinstrument import Profiler
 
-from utils import normalize_img, convolve_with_kernels2, sigmoid, cosine_similarity, downsample
+from utils import *
 
 KERNEL_BOXES = {
         "RL-010.jpg": [[122, 13, 173, 84], [320, 26, 349, 92]],
@@ -18,7 +21,7 @@ KERNEL_BOXES = {
         "RL-274.jpg": [[315, 232, 322, 248]],
 }
 
-THRESHOLD = 0.9
+THRESHOLD = 0.875
 
 def detect_red_light(kernels: list[np.ndarray], I: np.ndarray) -> list[list[int]]:
     '''
@@ -44,9 +47,10 @@ def detect_red_light(kernels: list[np.ndarray], I: np.ndarray) -> list[list[int]
     # Get raw scores by convolving all kernels with image and taking max
     scores = convolve_with_kernels2(kernels, I)
     scores = scores * (scores > THRESHOLD)
-    plt.imshow(scores)
-    plt.show()
+    # plt.imshow(scores)
+    # plt.show()
 
+    bounding_boxes = score_clustering(scores)
 
     return bounding_boxes
 
@@ -80,19 +84,20 @@ if __name__ == "__main__":
         file_names = [f for f in file_names if '.jpg' in f] 
 
         preds = {}
-        # for i in range(len(file_names)):
-        for i in range(3):
-            
+
+        print("Generating Predicitons...\n")
+        for i in tqdm.tqdm(range(len(file_names))):
             # read image using PIL:
             I = Image.open(os.path.join(data_path,file_names[i]))
             # I = Image.open(os.path.join(data_path, "RL-010.jpg"))
-            I = downsample(I, 2)
-            I.show()
-            arr = np.asarray(I)
+            Id = downsample(I, 2)
+            # Id.show()
+            arr = np.asarray(Id)
             
-            preds[file_names[i]] = detect_red_light(kernels[:], arr)
-
-        # visualize(data_path, file_names[0],preds[file_names[0]])
+            bounding_boxes = detect_red_light(kernels[:], arr)
+            bounding_boxes = (np.array(bounding_boxes) * 2).tolist()
+            preds[file_names[i]] = bounding_boxes
+            # visualize(I, bounding_boxes)
 
         # save preds (overwrites any previous predictions!)
         with open(os.path.join(preds_path,'preds.json'),'w') as f:

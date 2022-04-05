@@ -40,18 +40,22 @@ def test_cosine_sim():
                 ])
     assert is_close(cosine_similarity(k, k), 1.0)
 
-def test_mass_cosine_sim():
-    k = np.array([[[1, 1]], [[2, 2]], [[3, 3]]])
-    X = np.array([
-        [
-            [[[[1, 1]], [[2, 2]], [[3, 3]]]],
-            [[[[-1, -1]], [[-2, -2]], [[-3, -3]]]],
-        ],
-        [
-            [[[[1, 1]], [[2, 2]], [[3, 3]]]],
-            [[[[1, 1]], [[2, 2]], [[3, 3]]]],
-        ]])
-    print(k.shape)
-    print(X.shape)
-    mass_cosine_similarity(k, X)
-    assert False
+# def test_mass_cosine_sim():
+#     k = np.array([[[1, 1]], [[2, 2]], [[3, 3]]])
+#     X = np.array([
+#         [
+#             [[[[1, 1]], [[2, 2]], [[3, 3]]]],
+#             [[[[-1, -1]], [[-2, -2]], [[-3, -3]]]],
+#         ],
+#         [
+#             [[[[1, 1]], [[2, 2]], [[3, 3]]]],
+#             [[[[1, 1]], [[2, 2]], [[3, 3]]]],
+#         ]])
+#     print(k.shape)
+#     print(X.shape)
+#     mass_cosine_similarity(k, X)
+
+def test_neighborhood():
+    a = np.arange(9).reshape(3, 3)
+    nsr, ner, nsc, nec = neighborhood(a, (0, 1), 1)
+    assert (a[nsr:ner, nsc:nec] == np.arange(6).reshape(2, 3)).all()

@@ -8,6 +8,9 @@ from numpy.lib.stride_tricks import sliding_window_view
 from PIL import Image, ImageDraw
 from scipy import ndimage
 
+CLUSTER_AREA = 10
+MIN_AREA = 8
+MIN_CONFIDENCE = 0.89
 
 def rgb_to_hsv(image: Image.Image) -> Image.Image:
     """Convert Image from RGB to HSV"""
@@ -20,7 +23,8 @@ outline: str = "red") -> None:
     """Visualize the bounding boxes in the image"""
     img = ImageDraw.Draw(I)
     for box in bounding_boxes:
-        img.rectangle(tuple(box), outline=outline)
+        draw_box = (box[1], box[0], box[3], box[2])
+        img.rectangle(draw_box, outline=outline)
     I.show()
 
 
@@ -146,7 +150,61 @@ def cosine_similarity(k: np.ndarray, x: np.ndarray, k_norm=None, x_norm=None) ->
     return k.ravel().dot(x.ravel()) / (k_norm * x_norm)
 
 
-# def score_clustering(s: np.ndarray) -> list[int]:
+def neighborhood(s: np.ndarray, loc: tuple[int, int], size: int) -> tuple[int, int, int, int]:
+    start_row = max(0, loc[0] - size)
+    end_row = min(s.shape[0], loc[0] + size + 1)
+    start_col = max(0, loc[1] - size)
+    end_col = min(s.shape[1], loc[1] + size + 1)
+    return (start_row, end_row, start_col, end_col)
+
+
+def find_cluster(s: np.ndarray, start: tuple[int, int]) -> tuple[list[int], float]:
+    tlr = brr = start[0]  # Top left row and bottom right row
+    tlc = brc = start[1]  # Top left column and bottom right column
+    total = 0
+    num_tiles = 0
+
+    stack = [start]
+    while len(stack) > 0:
+        curr = stack.pop()
+        if s[curr] == 0: continue  # Already visited this
+
+        total += s[curr]
+        num_tiles += 1
+        s[curr] = 0
+
+        # Update bounding box area
+        tlr = min(tlr, curr[0])
+        brr = max(brr, curr[0])
+        tlc = min(tlc, curr[1])
+        brc = max(brc, curr[1])
+
+        # Find nearby points to join into the cluster
+        nsr, ner, nsc, nec = neighborhood(s, curr, CLUSTER_AREA)
+        for i in range(nsr, ner):
+            for j in range(nsc, nec):
+                if s[i, j] != 0 and (i, j) not in stack:
+                    stack.append((i, j))
+
+    return [tlr, tlc, brr, brc], total / num_tiles
+
+
+
+def score_clustering(s: np.ndarray) -> list[list[int]]:
+    bounding_boxes = []
+
+    while not (s == 0).all():
+        # find highest point
+        start = np.unravel_index(np.argmax(s, axis=None), s.shape)
+
+        # find cluster around that point
+        cluster_coords, confidence  = find_cluster(s, start)
+        if confidence > MIN_CONFIDENCE:
+        # if (cluster_coords[2] - cluster_coords[0]) \
+        #     * (cluster_coords[3] - cluster_coords[1]) >= MIN_AREA:
+            bounding_boxes.append(cluster_coords)
+
+    return np.array(bounding_boxes).astype(int).tolist()
 
 
 def downsample(I: Image.Image, s: int = 1) -> Image.Image:
