@@ -19,13 +19,16 @@ def rgb_to_hsv(image: Image.Image) -> Image.Image:
 
 def visualize(I: Image.Image,
 bounding_boxes: list[list[int]],
-outline: str = "red") -> None:
+outline: str = "red",
+save=None) -> None:
     """Visualize the bounding boxes in the image"""
     img = ImageDraw.Draw(I)
     for box in bounding_boxes:
         draw_box = (box[1], box[0], box[3], box[2])
         img.rectangle(draw_box, outline=outline)
     I.show()
+    if save is not None:
+        I.save(save)
 
 
 def normalize_arr(arr: np.ndarray) -> np.ndarray:
